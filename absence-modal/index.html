@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Absence Modal Prototype — Famly</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: 'DM Sans', system-ui, sans-serif; }
+    button { font-family: inherit; }
+    textarea { font-family: inherit; }
+    select { font-family: inherit; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef } = React;
+
+
+// ─── Chevron icons (inlined SVG) ─────────────────────────────────────────────
+const ChevronDown = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <mask id="cd-mask" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+      <rect width="24" height="24" fill="#D9D9D9"/>
+    </mask>
+    <g mask="url(#cd-mask)">
+      <path d="M12 15.5C11.8692 15.5 11.7432 15.4806 11.6221 15.4418C11.5002 15.403 11.3925 15.3254 11.2991 15.209L6.2243 9.97087C6.07477 9.79627 6 9.59256 6 9.35976C6 9.12695 6.08411 8.92325 6.25234 8.74865C6.42056 8.59344 6.61682 8.51584 6.84112 8.51584C7.06542 8.51584 7.26168 8.59344 7.42991 8.74865L12 13.4921L16.5981 8.74865C16.7477 8.57404 16.9346 8.4914 17.1589 8.50071C17.3832 8.5108 17.5794 8.59344 17.7477 8.74865C17.9159 8.92325 18 9.13161 18 9.37373C18 9.61662 17.9159 9.81567 17.7477 9.97087L12.7009 15.209C12.6075 15.3254 12.5002 15.403 12.3791 15.4418C12.2572 15.4806 12.1308 15.5 12 15.5Z" fill="#2D2D39"/>
+    </g>
+  </svg>
+);
+
+const ChevronUp = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <mask id="cu-mask" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+      <rect width="24" height="24" fill="#D9D9D9"/>
+    </mask>
+    <g mask="url(#cu-mask)">
+      <path d="M6.25234 15.2107C6.08411 15.0565 6 14.8586 6 14.6172C6 14.3765 6.08411 14.1694 6.25234 13.9959L11.2991 8.81818C11.3925 8.70248 11.5002 8.62033 11.6221 8.57174C11.7432 8.52391 11.8692 8.5 12 8.5C12.1308 8.5 12.2572 8.52391 12.3791 8.57174C12.5002 8.62033 12.6075 8.70248 12.7009 8.81818L17.7757 14.0248C17.9252 14.1983 18 14.3958 18 14.6172C18 14.8393 17.9159 15.0372 17.7477 15.2107C17.5794 15.3843 17.3832 15.4711 17.1589 15.4711C16.9346 15.4711 16.7383 15.3843 16.5701 15.2107L12 10.5248L7.40187 15.2397C7.25234 15.4132 7.06542 15.5 6.84112 15.5C6.61682 15.5 6.42056 15.4036 6.25234 15.2107Z" fill="#2D2D39"/>
+    </g>
+  </svg>
+);
+
+// ─── Hover-aware button primitives ───────────────────────────────────────────
+// CSS !important can't beat inline styles, so we manage hover via React state.
+
+const HOVER = {
+  primary:   { base: T => ({ background: T.primary }),          hover: { background: "#3D0F7A" }, active: { background: "#2E0B5E" } },
+  danger:    { base: T => ({ background: T.r400 }),             hover: { background: "#B91C1C" }, active: { background: "#991B1B" } },
+  ghost:     { base: T => ({ background: T.n0 }),               hover: { background: "#F1F1F4" }, active: { background: "#E2E2E9" } },
+  accordion: { base: () => ({ background: "transparent" }),     hover: { background: "#F1F1F4" }, active: { background: "#E8E8EF" } },
+  summaryAcc:{ base: T => ({ background: T.b50 }),              hover: { background: "#E8F2FF" }, active: { background: "#D6E8FF" } },
+  link:      { base: () => ({ opacity: 1 }),                    hover: { opacity: 0.7 },          active: { opacity: 0.5 } },
+};
+
+function Btn({ variant = "ghost", onClick, style = {}, children, ...rest }) {
+  const [hov, setHov] = useState(false);
+  const [act, setAct] = useState(false);
+  const spec = HOVER[variant];
+  const hoverStyle = act ? spec.active : hov ? spec.hover : {};
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => { setHov(false); setAct(false); }}
+      onMouseDown={() => setAct(true)}
+      onMouseUp={() => setAct(false)}
+      style={{ transition: "background-color 120ms ease, opacity 120ms ease", ...style, ...hoverStyle }}
+      {...rest}
+    >
+      {children}
+    </Btn>
+  );
+}
+
+
+const T = {
+  // Typography
+  fontMatter: "'Matter', 'DM Sans', system-ui, sans-serif",
+  fontInter:  "'Inter', system-ui, sans-serif",
+
+  // Neutrals
+  n0:   "#FFFFFF",
+  n50:  "#F9F9FB",
+  n75:  "#F1F1F4",
+  n200: "#C6C6D2",
+  n300: "#656581",
+  n400: "#2D2D39",
+
+  // Brand
+  primary: "#4E169C",
+
+  // Green
+  g50:  "#F6FEFB",
+  g400: "#1CB072",
+
+  // Blue
+  b50:  "#F5FAFF",
+  b200: "#CDE6FE",
+  b400: "#067AEF",
+
+  // Red
+  r50:  "#FFF1F1",
+  r200: "#FCA5A5",
+  r400: "#DC2626",
+
+  // Amber
+  a50:  "#FFFBEB",
+  a200: "#FCD34D",
+  a400: "#92400E",
+
+  // Purple (status pill)
+  p50:  "#F5F3FF",
+  p200: "#C4B5FD",
+  p400: "#534AB7",
+
+  shadow: "0px 15px 12px 0px rgba(104,111,125,0.08), 0px 8px 5px 0px rgba(104,111,125,0.04)",
+  shadowFooter: "0px -3px 2px 0px rgba(104,111,125,0.08)",
+};
+
+// ─── Shared notice — always the same copy ────────────────────────────────────
+const FIXED_NOTICE = {
+  title: "Hours populated from staff schedule",
+  body:  "Break deductions have been applied. Days with no scheduled shifts are excluded. To adjust hours, switch to Custom mode.",
+};
+
+// ─── Shared shift hour calculation helpers ────────────────────────────────────
+const calcBreakMins  = b => { if (!b) return 0; const m = b.match(/(\d+)/); return m ? parseInt(m[1]) : 0; };
+const calcNetHours   = sh => sh.hours - calcBreakMins(sh.break) / 60;
+const calcDayNet     = day => day.shifts.reduce((s, sh) => s + calcNetHours(sh), 0);
+const calcTotalHours = counted => counted.reduce((s, d) => s + calcDayNet(d), 0);
+const formatHoursStr = h => {
+  const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60);
+  if (mins === 0) return `${hrs}hours`;
+  return `${hrs}hrs, ${mins}min`;
+};
+
+// ─── Scenario data ────────────────────────────────────────────────────────────
+const SCENARIOS = [
+  {
+    id: "baseline",
+    label: "Holiday · Annual leave",
+    tag: "Baseline",
+    absenceType:    { label: "Holiday",      icon: "☀️" },
+    absenceSubtype: { label: "Annual leave", icon: "$" },
+    dates: { from: "07/04/2026", to: "13/04/2026", calendarDays: 7, helperSuffix: "Includes weekend", workingDays: 4 },
+    details: {
+      counted: [
+        { id: "tue7",  label: "Tuesday 7 Apr",   totalHours: 6,  shifts: [{ room: "Office",          time: "8:00–10:00", hours: 2, break: null }, { room: "Caterpillars", time: "10:00–14:00", hours: 4, break: "30 min" }] },
+        { id: "wed8",  label: "Wednesday 8 Apr", totalHours: 8,  shifts: [{ room: "Butterflies",      time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "mon13", label: "Monday 13 Apr",   totalHours: 8,  shifts: [{ room: "Butterflies",      time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "tue14", label: "Tuesday 14 Apr",  totalHours: 7,  shifts: [{ room: "Office",           time: "8:00–15:00", hours: 7, break: null }] },
+      ],
+      skipped: [
+        { label: "Saturday 11 Apr",  reason: "Weekend closed",    type: "weekend" },
+        { label: "Sunday 12 Apr",    reason: "Weekend closed",    type: "weekend" },
+        { label: "Friday 10 Apr",    reason: "No shifts",         type: "nohours" },
+      ],
+    },
+    summary: {
+      days: 4, hours: 23,
+      usesHoliday: true, paid: true,
+      rows: [
+        { label: "Available after request",   value: "22 days" },
+        { label: "Current available holiday", value: "26 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+  {
+    id: "closure",
+    label: "Holiday · Closure day",
+    tag: "Closure day",
+    absenceType:    { label: "Holiday",      icon: "☀️" },
+    absenceSubtype: { label: "Annual leave", icon: "$" },
+    dates: { from: "07/04/2026", to: "13/04/2026", calendarDays: 7, helperSuffix: "Includes closure day and weekend", workingDays: 3 },
+    details: {
+      counted: [
+        { id: "tue7",  label: "Tuesday 7 Apr",   totalHours: 6,  shifts: [{ room: "Office",      time: "8:00–10:00", hours: 2, break: null }, { room: "Caterpillars", time: "10:00–14:00", hours: 4, break: "30 min" }] },
+        { id: "wed8",  label: "Wednesday 8 Apr", totalHours: 8,  shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "mon13", label: "Monday 13 Apr",   totalHours: 8,  shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+      ],
+      skipped: [
+        { label: "Thursday 9 Apr",   reason: "Paid closure day", subLabel: "Betriebsausflug", type: "closure" },
+        { label: "Saturday 11 Apr",  reason: "Weekend closed",   type: "weekend" },
+        { label: "Sunday 12 Apr",    reason: "Weekend closed",   type: "weekend" },
+        { label: "Friday 10 Apr",    reason: "No shifts",        type: "nohours" },
+      ],
+    },
+    summary: {
+      days: 3, hours: 18,
+      usesHoliday: true, paid: true,
+      rows: [
+        { label: "Available after request",   value: "23 days" },
+        { label: "Current available holiday", value: "26 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+  {
+    id: "unpaid",
+    label: "Holiday · Unpaid",
+    tag: "Unpaid",
+    absenceType:    { label: "Holiday", icon: "☀️" },
+    absenceSubtype: { label: "Unpaid",  icon: "—" },
+    dates: { from: "07/04/2026", to: "10/04/2026", calendarDays: 4, helperSuffix: null, workingDays: 4 },
+    details: {
+      counted: [
+        { id: "tue7",  label: "Tuesday 7 Apr",   totalHours: 8, shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "wed8",  label: "Wednesday 8 Apr", totalHours: 8, shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "thu9",  label: "Thursday 9 Apr",  totalHours: 6, shifts: [{ room: "Office",      time: "9:00–15:00", hours: 6, break: null }] },
+        { id: "fri10", label: "Friday 10 Apr",   totalHours: 6, shifts: [{ room: "Office",      time: "8:00–14:00", hours: 6, break: null }] },
+      ],
+      skipped: [],
+    },
+    summary: {
+      days: 4, hours: 24,
+      usesHoliday: false, paid: false,
+      rows: [
+        { label: "Available after request",   value: "26 days" },
+        { label: "Current available holiday", value: "26 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+  {
+    id: "sick",
+    label: "Sick leave",
+    tag: "Sick",
+    absenceType:    { label: "Sick",          icon: "🌡️" },
+    absenceSubtype: { label: "Paid sickness", icon: "$" },
+    dates: { from: "07/04/2026", to: "10/04/2026", calendarDays: 4, helperSuffix: null, workingDays: 4 },
+    details: {
+      counted: [
+        { id: "tue7",  label: "Tuesday 7 Apr",   totalHours: 8, shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "wed8",  label: "Wednesday 8 Apr", totalHours: 8, shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "thu9",  label: "Thursday 9 Apr",  totalHours: 6, shifts: [{ room: "Office",      time: "9:00–15:00", hours: 6, break: null }] },
+        { id: "fri10", label: "Friday 10 Apr",   totalHours: 6, shifts: [{ room: "Office",      time: "8:00–14:00", hours: 6, break: null }] },
+      ],
+      skipped: [],
+    },
+    summary: {
+      days: 4, hours: 24,
+      usesHoliday: false, paid: true,
+      rows: [
+        { label: "Available after request",   value: "26 days" },
+        { label: "Current available holiday", value: "26 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+  {
+    id: "childsick",
+    label: "Child sick (§45 SGB V)",
+    tag: "Child sick",
+    absenceType:    { label: "Child sick", icon: "🩺" },
+    absenceSubtype: null,
+    dates: { from: "07/04/2026", to: "09/04/2026", calendarDays: 3, helperSuffix: null, workingDays: 3 },
+    details: {
+      counted: [
+        { id: "tue7", label: "Tuesday 7 Apr",   totalHours: 8, shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "wed8", label: "Wednesday 8 Apr", totalHours: 8, shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "thu9", label: "Thursday 9 Apr",  totalHours: 6, shifts: [{ room: "Office",      time: "9:00–15:00", hours: 6, break: null }] },
+      ],
+      skipped: [],
+    },
+    summary: {
+      days: 3, hours: 18,
+      usesHoliday: false, paid: true,
+      rows: [
+        { label: "Available after request",   value: "26 days" },
+        { label: "Current available holiday", value: "26 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+  {
+    id: "over",
+    label: "Holiday · Over entitlement",
+    tag: "Over limit",
+    absenceType:    { label: "Holiday",      icon: "☀️" },
+    absenceSubtype: { label: "Annual leave", icon: "$" },
+    dates: { from: "07/04/2026", to: "13/04/2026", calendarDays: 7, helperSuffix: "Includes weekend", workingDays: 5 },
+    overNotice: "This request uses 5 days but you only have 3 days remaining. It will leave your balance 2 days below zero.",
+    details: {
+      counted: [
+        { id: "tue7",  label: "Tuesday 7 Apr",   totalHours: 6,  shifts: [{ room: "Office",      time: "8:00–10:00", hours: 2, break: null }, { room: "Caterpillars", time: "10:00–14:00", hours: 4, break: "30 min" }] },
+        { id: "wed8",  label: "Wednesday 8 Apr", totalHours: 8,  shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "thu9",  label: "Thursday 9 Apr",  totalHours: 8,  shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+        { id: "fri10", label: "Friday 10 Apr",   totalHours: 6,  shifts: [{ room: "Office",      time: "8:00–14:00", hours: 6, break: null }] },
+        { id: "mon13", label: "Monday 13 Apr",   totalHours: 8,  shifts: [{ room: "Butterflies", time: "8:00–16:00", hours: 8, break: "30 min" }] },
+      ],
+      skipped: [
+        { label: "Saturday 11 Apr", reason: "Weekend closed", type: "weekend" },
+        { label: "Sunday 12 Apr",   reason: "Weekend closed", type: "weekend" },
+      ],
+    },
+    summary: {
+      days: 5, hours: 30,
+      usesHoliday: true, paid: true, over: true,
+      rows: [
+        { label: "Available after request",   value: "−2 days", valueRed: true },
+        { label: "Current available holiday", value: "3 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+  {
+    id: "noshifts",
+    label: "Holiday · No shifts published",
+    tag: "No shifts",
+    absenceType:    { label: "Holiday",      icon: "☀️" },
+    absenceSubtype: { label: "Annual leave", icon: "$" },
+    dates: { from: "07/04/2026", to: "13/04/2026", calendarDays: 7, helperSuffix: "Includes weekend", workingDays: 0 },
+    details: {
+      counted: [],
+      skipped: [
+        { label: "Tuesday 7 Apr",    reason: "No shifts",       type: "nohours" },
+        { label: "Wednesday 8 Apr",  reason: "No shifts",       type: "nohours" },
+        { label: "Thursday 9 Apr",   reason: "No shifts",       type: "nohours" },
+        { label: "Friday 10 Apr",    reason: "No shifts",       type: "nohours" },
+        { label: "Saturday 11 Apr",  reason: "Weekend closed",  type: "weekend" },
+        { label: "Sunday 12 Apr",    reason: "Weekend closed",  type: "weekend" },
+        { label: "Monday 13 Apr",    reason: "No shifts",       type: "nohours" },
+      ],
+    },
+    summary: {
+      days: 0, hours: 0,
+      usesHoliday: true, paid: true,
+      rows: [
+        { label: "Available after request",   value: "26 days" },
+        { label: "Current available holiday", value: "26 days" },
+        { label: "Annual entitlement",        value: "30 days" },
+      ],
+    },
+  },
+];
+
+// ─── Shared micro-components ──────────────────────────────────────────────────
+
+function Label({ children, style = {} }) {
+  return (
+    <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400, lineHeight: "1.2", margin: 0, ...style }}>
+      {children}
+    </p>
+  );
+}
+
+function MicroText({ children, style = {} }) {
+  return (
+    <p style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 400, color: T.n300, lineHeight: "1.2", letterSpacing: "-0.12px", margin: 0, ...style }}>
+      {children}
+    </p>
+  );
+}
+
+function SelectMock({ icon, iconColor, label, caret = true }) {
+  return (
+    <div style={{ background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, height: 36, display: "flex", alignItems: "center", padding: "0 8px", justifyContent: "space-between" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        {icon && <span style={{ fontSize: 16, lineHeight: 1 }}>{icon}</span>}
+        <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400 }}>{label}</span>
+      </div>
+      {caret && <span style={{ fontSize: 10, color: T.n300 }}>▾</span>}
+    </div>
+  );
+}
+
+// Figma pill icon assets — replaced by uploaded SVGs below
+
+const PILL_STYLE = (bg, border) => ({
+  background: bg, border: `1px solid ${border}`,
+  borderRadius: 24, height: 24,
+  display: "inline-flex", alignItems: "center", gap: 4,
+  padding: "0 8px", flexShrink: 0,
+});
+const PILL_TEXT = { fontFamily: "'Inter', system-ui, sans-serif", fontSize: 14, color: "#2D2D39", letterSpacing: "-0.42px", whiteSpace: "nowrap", fontWeight: 400 };
+
+const PaidSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <mask id="paid-mask" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+      <rect width="16" height="16" fill="#D9D9D9"/>
+    </mask>
+    <g mask="url(#paid-mask)">
+      <path d="M8.43694 13.4331C8.31727 13.4331 8.21238 13.388 8.12227 13.2977C8.03205 13.2076 7.98694 13.0916 7.98694 12.9497V12.1382C7.5075 12.0374 7.08338 11.8501 6.71461 11.5766C6.34572 11.3031 6.069 10.9728 5.88444 10.5856C5.828 10.4686 5.82455 10.347 5.87411 10.2209C5.92366 10.0948 6.01172 10.0091 6.13827 9.96391C6.2665 9.92546 6.39466 9.92157 6.52277 9.95224C6.651 9.98302 6.74672 10.0549 6.80994 10.1677C7.00316 10.513 7.24338 10.7824 7.53061 10.9761C7.81772 11.1696 8.13477 11.2664 8.48177 11.2664C8.92966 11.2664 9.32372 11.138 9.66394 10.8812C10.0041 10.6244 10.1741 10.2972 10.1741 9.89974C10.1741 9.52363 10.0387 9.21507 9.76777 8.97407C9.49677 8.73307 9.06088 8.50574 8.46011 8.29207C7.56266 7.97152 6.92611 7.64396 6.55044 7.30941C6.17477 6.97474 5.98694 6.51596 5.98694 5.93307C5.98694 5.43996 6.17522 4.99252 6.55177 4.59074C6.92822 4.18907 7.40661 3.94463 7.98694 3.85741V3.04974C7.98694 2.90785 8.02927 2.79185 8.11394 2.70174C8.1985 2.61152 8.30061 2.56641 8.42027 2.56641C8.53994 2.56641 8.64205 2.61152 8.72661 2.70174C8.81127 2.79185 8.85361 2.90785 8.85361 3.04974V3.85741C9.2075 3.90018 9.53333 4.00257 9.83111 4.16457C10.129 4.32646 10.3767 4.55185 10.5741 4.84074C10.6484 4.96207 10.6702 5.08257 10.6394 5.20224C10.6087 5.32191 10.5356 5.40652 10.4203 5.45607C10.3032 5.49885 10.1788 5.50207 10.0473 5.46574C9.91561 5.42941 9.79677 5.35268 9.69077 5.23557C9.55577 5.06557 9.38377 4.93374 9.17477 4.84007C8.96577 4.74652 8.73094 4.69974 8.47027 4.69974C8.06861 4.69974 7.71538 4.81363 7.41061 5.04141C7.10594 5.26918 6.95361 5.5553 6.95361 5.89974C6.95361 6.20996 7.09572 6.48691 7.37994 6.73057C7.66405 6.97413 8.18561 7.2288 8.94461 7.49457C9.73261 7.76724 10.2957 8.08329 10.6338 8.44274C10.9718 8.80207 11.1408 9.29202 11.1408 9.91257C11.1408 10.4527 10.9231 10.9435 10.4876 11.3849C10.0522 11.8265 9.5075 12.09 8.85361 12.1754V12.9497C8.85361 13.0916 8.81127 13.2076 8.72661 13.2977C8.64205 13.388 8.5455 13.4331 8.43694 13.4331Z" fill="#2D2D39"/>
+    </g>
+  </svg>
+);
+
+const UnpaidSvg = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <mask id="unpaid-mask" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+      <rect width="16" height="16" fill="#D9D9D9"/>
+    </mask>
+    <g mask="url(#unpaid-mask)">
+      <path d="M7.56664 4.0113V3.2818C7.56664 3.16224 7.60897 3.06013 7.69364 2.97547C7.77819 2.89091 7.8803 2.84863 7.99997 2.84863C8.11964 2.84863 8.22175 2.89091 8.3063 2.97547C8.39097 3.06013 8.4333 3.16224 8.4333 3.2818V4.00747C8.76408 4.0348 9.06453 4.13441 9.33464 4.3063C9.60464 4.47808 9.82897 4.69686 10.0076 4.96263C10.0845 5.05752 10.1146 5.16758 10.098 5.2928C10.0813 5.41802 10.0256 5.51908 9.9308 5.59597C9.83591 5.67286 9.72308 5.70019 9.5923 5.67797C9.46153 5.65574 9.35769 5.59719 9.2808 5.5023C9.14058 5.29463 8.96019 5.13569 8.73964 5.02547C8.51919 4.91524 8.2893 4.86013 8.04997 4.86013C7.89786 4.86013 7.7468 4.88319 7.5968 4.9293C7.4468 4.97541 7.30214 5.03908 7.1628 5.1203C7.05425 5.1853 6.93908 5.19791 6.8173 5.15813C6.69553 5.11836 6.60214 5.04419 6.53714 4.93563C6.47225 4.82719 6.46136 4.71202 6.50447 4.59013C6.54758 4.46835 6.62341 4.37502 6.73197 4.31013C6.85764 4.23147 6.98864 4.16758 7.12497 4.11847C7.2613 4.06924 7.40853 4.03352 7.56664 4.0113ZM12.3448 13.5498L10.0205 11.2421C9.87858 11.4225 9.66086 11.5864 9.3673 11.7338C9.07364 11.8812 8.7623 11.9674 8.4333 11.9921V12.705C8.4333 12.8246 8.39097 12.9267 8.3063 13.0113C8.22175 13.096 8.11964 13.1383 7.99997 13.1383C7.8803 13.1383 7.77819 13.096 7.69364 13.0113C7.60897 12.9267 7.56664 12.8246 7.56664 12.705V11.9588C7.08886 11.8605 6.68886 11.6769 6.36664 11.4081C6.04441 11.1394 5.78419 10.7776 5.58597 10.3228C5.52264 10.21 5.52241 10.0938 5.5853 9.97413C5.64808 9.85447 5.74141 9.76858 5.8653 9.71647C5.98075 9.66436 6.0983 9.66797 6.21797 9.7273C6.33764 9.78674 6.42691 9.87286 6.4858 9.98563C6.65936 10.3463 6.88375 10.6222 7.15897 10.8133C7.43419 11.0043 7.75341 11.0998 8.11664 11.0998C8.36541 11.0998 8.59553 11.0524 8.80697 10.9575C9.01853 10.8626 9.19869 10.7386 9.34747 10.5856L2.41664 3.6383C2.3243 3.54597 2.27708 3.4438 2.27497 3.3318C2.27286 3.21991 2.32008 3.11569 2.41664 3.01913C2.51319 2.92247 2.61641 2.87413 2.7263 2.87413C2.83608 2.87413 2.9393 2.92247 3.03597 3.01913L12.964 12.9471C13.0563 13.0395 13.1035 13.1389 13.1056 13.2453C13.1079 13.3517 13.0606 13.4532 12.964 13.5498C12.8674 13.6464 12.7642 13.6946 12.6545 13.6946C12.5446 13.6946 12.4414 13.6464 12.3448 13.5498Z" fill="#2D2D39"/>
+    </g>
+  </svg>
+);
+
+function PillUsesHoliday() {
+  return (
+    <div style={PILL_STYLE("#F9F9FB", "#656581")}>
+      <span style={PILL_TEXT}>Uses holiday</span>
+    </div>
+  );
+}
+
+function PillNoLeaveUsed() {
+  return (
+    <div style={PILL_STYLE("#F9F9FB", "#656581")}>
+      <span style={PILL_TEXT}>No leave used</span>
+    </div>
+  );
+}
+
+function PillPaid() {
+  return (
+    <div style={PILL_STYLE("#F6FEFB", "#1CB072")}>
+      <PaidSvg />
+      <span style={PILL_TEXT}>Paid</span>
+    </div>
+  );
+}
+
+function PillUnpaid() {
+  return (
+    <div style={PILL_STYLE("#F9F9FB", "#656581")}>
+      <UnpaidSvg />
+      <span style={PILL_TEXT}>Unpaid</span>
+    </div>
+  );
+}
+
+const InfoIcon = ({ color = "#067AEF" }) => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <mask id="info-mask" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width="20" height="20">
+      <rect width="20" height="20" fill="#D9D9D9"/>
+    </mask>
+    <g mask="url(#info-mask)">
+      <path d="M9.99571 13.792C10.148 13.792 10.2771 13.74 10.3828 13.6362C10.4886 13.5324 10.5415 13.4038 10.5415 13.2503V9.54195C10.5415 9.38849 10.4899 9.25985 10.3869 9.15603C10.2839 9.05221 10.1562 9.00031 10.0039 9.00031C9.85161 9.00031 9.72258 9.05221 9.61682 9.15603C9.51105 9.25985 9.45817 9.38849 9.45817 9.54195V13.2503C9.45817 13.4038 9.50968 13.5324 9.61271 13.6362C9.71574 13.74 9.84341 13.792 9.99571 13.792ZM9.99542 7.7407C10.1613 7.7407 10.3018 7.68461 10.4169 7.57243C10.532 7.46024 10.5895 7.32122 10.5895 7.15537C10.5895 6.98952 10.5334 6.84903 10.4213 6.73391C10.3091 6.6188 10.1701 6.56124 10.0042 6.56124C9.83835 6.56124 9.69786 6.61734 9.58275 6.72953C9.46764 6.84173 9.41009 6.98075 9.41009 7.1466C9.41009 7.31244 9.46618 7.45292 9.57838 7.56803C9.69056 7.68315 9.82957 7.7407 9.99542 7.7407ZM10.007 17.5836C8.96374 17.5836 7.98124 17.3863 7.05946 16.9915C6.13767 16.5968 5.33085 16.0537 4.639 15.3622C3.94714 14.6706 3.40376 13.8645 3.00886 12.9437C2.61396 12.0229 2.4165 11.0391 2.4165 9.99216C2.4165 8.94524 2.61387 7.96437 3.00859 7.04953C3.40331 6.13469 3.94643 5.33134 4.63796 4.63949C5.3295 3.94763 6.13566 3.40425 7.05644 3.00935C7.97722 2.61444 8.96106 2.41699 10.008 2.41699C11.0549 2.41699 12.0358 2.61435 12.9506 3.00908C13.8654 3.4038 14.6688 3.94692 15.3606 4.63845C16.0525 5.32999 16.5959 6.13453 16.9908 7.05206C17.3857 7.96958 17.5831 8.94995 17.5831 9.99316C17.5831 11.0364 17.3858 12.0189 16.991 12.9407C16.5963 13.8625 16.0532 14.6693 15.3617 15.3611C14.6701 16.053 13.8656 16.5964 12.9481 16.9913C12.0305 17.3862 11.0502 17.5836 10.007 17.5836ZM9.99982 16.5003C11.8054 16.5003 13.3401 15.8684 14.604 14.6045C15.8679 13.3406 16.4998 11.8059 16.4998 10.0003C16.4998 8.19475 15.8679 6.66003 14.604 5.39614C13.3401 4.13225 11.8054 3.50031 9.99982 3.50031C8.19426 3.50031 6.65954 4.13225 5.39565 5.39614C4.13176 6.66003 3.49982 8.19475 3.49982 10.0003C3.49982 11.8059 4.13176 13.3406 5.39565 14.6045C6.65954 15.8684 8.19426 16.5003 9.99982 16.5003Z" fill={color}/>
+    </g>
+  </svg>
+);
+
+function Notice({ overText, title, body }) {
+  const noticeTitle = title || FIXED_NOTICE.title;
+  const noticeBody  = body  || FIXED_NOTICE.body;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ background: T.n0, border: `1px solid ${T.b400}`, borderRadius: 8, padding: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <InfoIcon color={T.b400} />
+          <div>
+            <p style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 700, color: T.n400, lineHeight: "1.2", margin: "0 0 2px" }}>{noticeTitle}</p>
+            <p style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 400, color: T.n400, lineHeight: "1.2", margin: 0, letterSpacing: "-0.12px" }}>{noticeBody}</p>
+          </div>
+        </div>
+      </div>
+      {overText && (
+        <div style={{ background: T.r50, border: `1px solid ${T.r400}`, borderRadius: 8, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <InfoIcon color={T.r400} />
+            <div>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 700, color: T.n400, lineHeight: "1.2", margin: "0 0 2px" }}>Exceeds available holiday</p>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n400, lineHeight: "1.2", margin: 0 }}>{overText}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryAccordion({ sc, open, onToggle, hoursOverride }) {
+  const s = sc.summary;
+  const isOver = s.over;
+  const bodyRef = useRef(null);
+  const displayHours = hoursOverride !== undefined ? formatHoursStr(hoursOverride) : `${s.hours}hours`;
+
+  return (
+    <div style={{ background: T.b50, border: `1px solid ${T.b200}`, borderRadius: 8, overflow: "hidden" }}>
+
+      {/* Header row */}
+      <button
+        onClick={onToggle}
+        style={{ width: "100%", background: "transparent", border: "none", padding: 16, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left" }}
+      >
+        {/* Days + hours */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontFamily: T.fontMatter, fontSize: 16, fontWeight: 500, color: isOver ? T.r400 : T.n400, lineHeight: "1.2", margin: 0 }}>
+            {s.noShifts ? "— days" : `${s.days} day${s.days !== 1 ? "s" : ""}`}
+          </p>
+          <MicroText style={{ marginTop: 2 }}>({s.noShifts ? "no shifts yet" : displayHours})</MicroText>
+        </div>
+
+        {/* Status pills */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          {s.usesHoliday ? <PillUsesHoliday /> : <PillNoLeaveUsed />}
+          {s.paid ? <PillPaid /> : <PillUnpaid />}
+        </div>
+
+        {/* Chevron icon */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+          {open ? <ChevronUp /> : <ChevronDown />}
+        </div>
+      </Btn>
+
+      {/* Animated body — max-height transition with opacity fade */}
+      <div
+        ref={bodyRef}
+        style={{
+          maxHeight: open ? (bodyRef.current ? bodyRef.current.scrollHeight : 500) : 0,
+          overflow: "hidden",
+          transition: open
+            ? "max-height 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease-out"
+            : "max-height 220ms cubic-bezier(0.4, 0, 1, 1), opacity 150ms ease-in",
+          opacity: open ? 1 : 0,
+        }}
+      >
+        <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {s.rows.map((row, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300 }}>{row.label}</span>
+              <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: row.valueRed ? T.r400 : T.n400, fontWeight: row.valueRed ? 600 : 400 }}>{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function StaffModal({ sc }) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [note,     setNote]     = useState("");
+
+  const netTotal = calcTotalHours(sc.details.counted);
+
+  // Footer height: flat summary (~88px) + gap (16px) + CTAs (36px) + padding (48px)
+  const FOOTER_COLLAPSED_H = 210;
+
+  return (
+    <div style={{
+      background: T.n0,
+      borderRadius: 12,
+      width: "100%",
+      maxWidth: 450,
+      boxShadow: T.shadow,
+      // Use position relative so the absolute footer is contained within the modal
+      position: "relative",
+      maxHeight: "760px",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+    }}>
+
+      {/* ── Header ── */}
+      <div style={{ padding: 24, borderBottom: `1px solid ${T.n75}`, flexShrink: 0, background: T.n0, zIndex: 2, position: "relative" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <p style={{ fontFamily: T.fontMatter, fontSize: 20, fontWeight: 500, color: T.n400, lineHeight: "1.15", margin: 0 }}>Request absence</p>
+          <button style={{ background: "none", border: "none", fontSize: 20, color: T.n200, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</Btn>
+        </div>
+      </div>
+
+      {/* ── Scrollable content — padding-bottom keeps content clear of the overlapping footer ── */}
+      <div style={{
+        flex: 1,
+        overflowY: "auto",
+        padding: `16px 24px ${FOOTER_COLLAPSED_H + 8}px`,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        // Ensure scroll area sits below the header and above the footer in z-order
+        position: "relative",
+        zIndex: 1,
+      }}>
+
+        {/* Type + Subtype */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <Label>Absence type</Label>
+            <SelectMock icon={sc.absenceType.icon} label={sc.absenceType.label} />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <Label>Absence subtype</Label>
+            <SelectMock icon={sc.absenceSubtype?.icon} label={sc.absenceSubtype?.label || "—"} />
+          </div>
+        </div>
+
+        {/* Dates */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <Label>Absence dates</Label>
+          <div style={{ background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, height: 36, display: "flex", alignItems: "center", padding: "0 8px 0 12px", gap: 4 }}>
+            <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flexShrink: 0 }}>{sc.dates.from}</span>
+            <span style={{ fontSize: 13, color: T.n300 }}>→</span>
+            <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flex: 1 }}>{sc.dates.to}</span>
+            <span style={{ fontSize: 15, color: T.n300 }}>📅</span>
+          </div>
+          <MicroText>
+            {sc.dates.calendarDays} calendar days{sc.dates.helperSuffix ? ` (${sc.dates.helperSuffix})` : ""}
+          </MicroText>
+        </div>
+
+        {/* Durations */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, maxWidth: 200 }}>
+          <Label>Durations</Label>
+          <SelectMock label="Shift" />
+          <MicroText>{sc.dates.workingDays} working days</MicroText>
+        </div>
+
+        {/* Notice — fixed copy, plus over-entitlement notice if applicable */}
+        <Notice overText={sc.overNotice} />
+
+        {/* Add note */}
+        <div style={{ padding: "12px 0", opacity: 0.8 }}>
+          {!noteOpen ? (
+            <button onClick={() => setNoteOpen(true)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: 0 }}>
+              <span style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 600, color: T.n400 }}>+ Add note</span>
+            </Btn>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                rows={2}
+                placeholder="Add a note…"
+                autoFocus
+                style={{ border: `1px solid ${T.n200}`, borderRadius: 8, padding: "6px 8px", fontSize: 12, resize: "none", outline: "none", fontFamily: T.fontInter, flex: 1 }}
+              />
+              <button onClick={() => { setNoteOpen(false); setNote(""); }} style={{ background: "none", border: "none", fontSize: 16, color: T.n300, cursor: "pointer", padding: 0 }}>×</Btn>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Footer — absolutely positioned, overlaps scroll content, expands upward ── */}
+      <div style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: T.n0,
+        borderTop: `1px solid ${T.n75}`,
+        boxShadow: T.shadowFooter,
+        padding: 24,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        zIndex: 10,
+        borderRadius: "0 0 12px 12px",
+      }}>
+        <SummaryFlat sc={sc} hoursOverride={netTotal} />
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn variant="ghost" style={{ flex: 1, height: 36, background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer" }}>
+            Cancel
+          </Btn>
+          <Btn variant={sc.summary.over ? "danger" : "primary"} style={{ flex: 1, height: 36, background: sc.summary.over ? T.r400 : T.primary, border: "none", borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n0, cursor: "pointer", fontWeight: 500 }}>
+            {sc.summary.over ? "Request anyway" : "Request"}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Summary flat (Current — matches product design) ─────────────────────────
+function SummaryFlat({ sc, hoursOverride }) {
+  const s = sc.summary;
+  const isOver = s.over;
+
+  const paidLabel = s.paid ? "Paid" : "Unpaid";
+
+  const availableRow   = s.rows.find(r => r.label === "Available after request") || s.rows[0];
+  const entitlementRow = s.rows.find(r => r.label === "Annual entitlement")      || s.rows[s.rows.length - 1];
+
+  const daysLabel  = s.noShifts ? "— days" : `${s.days} day${s.days !== 1 ? "s" : ""}`;
+  const hoursLabel = s.noShifts ? "" : hoursOverride !== undefined ? `(${formatHoursStr(hoursOverride)})` : `(${s.hours}hours)`;
+
+  return (
+    <div style={{ background: T.n50, borderRadius: 4, padding: 16, display: "flex", flexDirection: "column", gap: 7 }}>
+
+      {/* Header row: Summary · Paid/Unpaid · days (hours) */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400 }}>Summary</span>
+          <span style={{ fontFamily: T.fontInter, fontSize: 14, color: T.n300, letterSpacing: "-0.42px" }}>{paidLabel}</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 0 }}>
+          <span style={{ fontFamily: T.fontInter, fontSize: 14, fontWeight: 600, color: isOver ? T.r400 : T.n400, letterSpacing: "-0.42px" }}>{daysLabel} </span>
+          <span style={{ fontFamily: T.fontInter, fontSize: 14, fontWeight: 400, color: isOver ? T.r400 : T.n400, letterSpacing: "-0.42px" }}>{hoursLabel}</span>
+        </div>
+      </div>
+
+      {/* 1px separator */}
+      <div style={{ height: 1, background: T.n200, width: "100%" }} />
+
+      {/* Available holiday */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300 }}>Available holiday</span>
+        <span style={{ fontFamily: T.fontInter, fontSize: 14, color: T.n300, letterSpacing: "-0.42px", textAlign: "right" }}>{availableRow.value}</span>
+      </div>
+
+      {/* Entitled holiday */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300 }}>Entitled holiday</span>
+        <span style={{ fontFamily: T.fontInter, fontSize: 14, color: T.n300, letterSpacing: "-0.42px", textAlign: "right" }}>{entitlementRow.value}</span>
+      </div>
+
+    </div>
+  );
+}
+
+const VIEWS = [
+  { id: "staff",   label: "Staff" },
+  { id: "manager", label: "Manager" },
+];
+
+const VARIANTS = {
+  staff: [
+    {
+      id: "current",
+      label: "Current",
+      description: "Shift-informed absence request. Footer accordion with upward expansion. Fixed blue notice. Summary closed by default.",
+    },
+    {
+      id: "option-b",
+      label: "Alternative",
+      description: "Dates first. Header subtitle with 'How absence works' link. Notice includes 'See details' link. New absence details modal with shift accordions and skipped days.",
+    },
+  ],
+  manager: [
+    {
+      id: "current",
+      label: "Current",
+      description: "Two-column manager review. Left: static summary (product-matching). Right: flat shifts list grouped by date with purple headings.",
+    },
+    {
+      id: "alternative",
+      label: "Alternative",
+      description: "Two-column manager review modal. Left: form with manager-tweaked copy, notice (no button), summary accordion. Right: Staff away at this time + Existing shifts with day accordions and skipped days.",
+    },
+  ],
+};
+
+// ─── Shared modal overlay wrapper ────────────────────────────────────────────
+function ModalOverlay({ onClose, children }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+    >
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 500, maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── How absence works modal ──────────────────────────────────────────────────
+function HowAbsenceWorksModal({ onClose }) {
+  const faqs = [
+    {
+      icon: "📅",
+      q: "Why don't all calendar days count?",
+      a: "Only days with a scheduled shift are counted. Weekends, closure days, and days with no shift in the rota are automatically skipped — so a week off might only cost 4 or 5 leave days, not 7.",
+    },
+    {
+      icon: "🏷️",
+      q: "What's the difference between absence types?",
+      a: "Each type has its own rules. Holiday (Annual leave) deducts from the entitlement balance. Sick leave and Child sick don't — they're recorded but the balance stays unchanged. Unpaid leave is recorded but neither paid nor deducted.",
+    },
+    {
+      icon: "⏱️",
+      q: "How are hours calculated?",
+      a: "Hours are pulled directly from the published rota. Break deductions are applied automatically — the hours shown are net working time after breaks. If the rota isn't published yet, working days will be 0 until shifts are added.",
+    },
+    {
+      icon: "☀️",
+      q: "What counts as a closure day?",
+      a: "Closure days are days the nursery is closed — like a staff trip or a bank holiday closure. These are excluded from the leave count and don't deduct from the holiday balance, regardless of the absence type.",
+    },
+    {
+      icon: "📊",
+      q: "How do I read the summary?",
+      a: "",
+      summary: true,
+    },
+    {
+      icon: "✅",
+      q: "When should a manager approve vs decline?",
+      a: "Check the right panel — it shows who else is away during the same period and what shifts would be affected. If approving would leave a room short-staffed or the balance is over entitlement, consider declining or adjusting dates.",
+      managerOnly: true,
+    },
+  ];
+
+  const summaryItems = [
+    { label: "Days counted", desc: "The number of working shift days in the selected range." },
+    { label: "Uses holiday / No leave used", desc: "Whether the absence type deducts from the annual entitlement." },
+    { label: "Paid / Unpaid", desc: "Whether the staff member receives pay during the absence." },
+    { label: "Available after request", desc: "The remaining holiday balance once this request is approved." },
+  ];
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <div style={{ background: T.n0, borderRadius: 12, boxShadow: T.shadow, display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "90vh" }}>
+
+        {/* Header */}
+        <div style={{ padding: "20px 24px 16px", borderBottom: `1px solid ${T.n75}`, flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p style={{ fontFamily: T.fontMatter, fontSize: 20, fontWeight: 500, color: T.n400, lineHeight: "1.15", margin: "0 0 4px" }}>How absence works</p>
+            <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0 }}>Common questions about how absences are calculated and reviewed</p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: T.n200, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</Btn>
+        </div>
+
+        {/* FAQ list */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 24px 8px" }}>
+          {faqs.map((faq, i) => (
+            <div key={i} style={{ display: "flex", gap: 14, padding: "16px 0", borderBottom: i < faqs.length - 1 ? `1px solid ${T.n75}` : "none" }}>
+              {/* Icon bubble */}
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: T.n50, border: `1px solid ${T.n75}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>
+                {faq.icon}
+              </div>
+              {/* Content */}
+              <div style={{ flex: 1 }}>
+                <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400, margin: "0 0 6px", lineHeight: "1.3" }}>{faq.q}</p>
+                {faq.summary ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {summaryItems.map(s => (
+                      <div key={s.label} style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+                        <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, lineHeight: "1.5", marginTop: 1 }}>→</span>
+                        <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n400, lineHeight: "1.5", margin: 0 }}>
+                          <strong style={{ fontWeight: 600 }}>{s.label}</strong> — {s.desc}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n400, lineHeight: 1.6, margin: 0 }}>{faq.a}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: "12px 24px 20px", borderTop: `1px solid ${T.n75}`, flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Btn variant="link" style={{ background: "none", border: "none", padding: 0, fontFamily: T.fontInter, fontSize: 12, color: T.n300, cursor: "pointer", textDecoration: "underline" }}>
+            Visit help articles ↗
+          </Btn>
+          <Btn variant="primary" onClick={onClose} style={{ height: 36, padding: "0 20px", background: T.primary, border: "none", borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n0, cursor: "pointer" }}>
+            Got it
+          </Btn>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+// ─── Absence details modal icons (uploaded SVGs) ─────────────────────────────
+const ShiftIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <path opacity="0.12" d="M2.25 6.6C2.25 5.33988 2.25 4.70982 2.49524 4.22852C2.71095 3.80516 3.05516 3.46095 3.47852 3.24524C3.95982 3 4.58988 3 5.85 3H12.15C13.4101 3 14.0402 3 14.5215 3.24524C14.9448 3.46095 15.289 3.80516 15.5048 4.22852C15.75 4.70982 15.75 5.33988 15.75 6.6V7.5H2.25V6.6Z" fill="#656581"/>
+    <path d="M15.75 7.5H2.25M12 1.5V4.5M6 1.5V4.5M6.75 12L8.25 13.5L11.625 10.125M5.85 16.5H12.15C13.4101 16.5 14.0402 16.5 14.5215 16.2548C14.9448 16.039 15.289 15.6948 15.5048 15.2715C15.75 14.7902 15.75 14.1601 15.75 12.9V6.6C15.75 5.33988 15.75 4.70982 15.5048 4.22852C15.289 3.80516 14.9448 3.46095 14.5215 3.24524C14.0402 3 13.4101 3 12.15 3H5.85C4.58988 3 3.95982 3 3.47852 3.24524C3.05516 3.46095 2.71095 3.80516 2.49524 4.22852C2.25 4.70982 2.25 5.33988 2.25 6.6V12.9C2.25 14.1601 2.25 14.7902 2.49524 15.2715C2.71095 15.6948 3.05516 16.039 3.47852 16.2548C3.95982 16.5 4.58988 16.5 5.85 16.5Z" stroke="#656581" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const SkippedIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <path opacity="0.12" d="M2.25 6C2.25 5.30252 2.25 4.95378 2.32667 4.66766C2.53472 3.8912 3.1412 3.28472 3.91766 3.07667C4.20378 3 4.55252 3 5.25 3H12.75C13.4475 3 13.7962 3 14.0823 3.07667C14.8588 3.28472 15.4653 3.8912 15.6733 4.66766C15.75 4.95378 15.75 5.30252 15.75 6H2.25Z" fill="#656581"/>
+    <path d="M6.75 11.25H11.25M15.75 6H2.25M12 1.5V3.75M6 1.5V3.75M5.85 16.5H12.15C13.4101 16.5 14.0402 16.5 14.5215 16.2548C14.9448 16.039 15.289 15.6948 15.5048 15.2715C15.75 14.7902 15.75 14.1601 15.75 12.9V6.6C15.75 5.33988 15.75 4.70982 15.5048 4.22852C15.289 3.80516 14.9448 3.46095 14.5215 3.24524C14.0402 3 13.4101 3 12.15 3H5.85C4.58988 3 3.95982 3 3.47852 3.24524C3.05516 3.46095 2.71095 3.80516 2.49524 4.22852C2.25 4.70982 2.25 5.33988 2.25 6.6V12.9C2.25 14.1601 2.25 14.7902 2.49524 15.2715C2.71095 15.6948 3.05516 16.039 3.47852 16.2548C3.95982 16.5 4.58988 16.5 5.85 16.5Z" stroke="#656581" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const BreakIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <mask id="break-mask" style={{ maskType: "alpha" }} maskUnits="userSpaceOnUse" x="0" y="0" width="14" height="14">
+      <rect width="14" height="14" fill="white"/>
+    </mask>
+    <g mask="url(#break-mask)">
+      <path d="M6.41665 10.2757C5.36943 10.2757 4.47569 9.90606 3.73542 9.1668C2.99514 8.42754 2.625 7.53329 2.625 6.48405V2.91673C2.625 2.67612 2.71068 2.47013 2.88203 2.29878C3.05339 2.12743 3.25937 2.04175 3.49999 2.04175H10.5561C11.0518 2.04175 11.4748 2.21705 11.8253 2.56765C12.1757 2.91826 12.3509 3.34154 12.3509 3.83751C12.3509 4.33349 12.1757 4.75648 11.8253 5.10647C11.4748 5.45647 11.0518 5.63147 10.5561 5.63147H10.2083V6.48405C10.2083 7.53329 9.83817 8.42754 9.09789 9.1668C8.35762 9.90606 7.46387 10.2757 6.41665 10.2757ZM3.49999 4.75648H9.33332V2.91673H3.49999V4.75648ZM6.41665 9.40072C7.2236 9.40072 7.91144 9.11634 8.48019 8.54759C9.04894 7.97884 9.33332 7.291 9.33332 6.48405V5.63147H3.49999V6.48405C3.49999 7.291 3.78436 7.97884 4.35311 8.54759C4.92186 9.11634 5.60971 9.40072 6.41665 9.40072ZM10.2083 4.75648H10.5561C10.8141 4.75648 11.0319 4.66767 11.2095 4.49006C11.3871 4.31244 11.4759 4.09463 11.4759 3.83661C11.4759 3.5786 11.3871 3.36078 11.2095 3.18316C11.0319 3.00554 10.8141 2.91673 10.5561 2.91673H10.2083V4.75648ZM2.625 11.9584V11.0834H11.2179V11.9584H2.625Z" fill="#656581"/>
+    </g>
+  </svg>
+);
+
+// ─── Absence details modal (Option B) ────────────────────────────────────────
+function AbsenceDetailsModal({ sc, onClose }) {
+  const { counted, skipped } = sc.details;
+
+  // Parse break string "30 min" -> minutes number
+  const breakMins = calcBreakMins;
+  const netHours  = calcNetHours;
+
+  // Net hours after break deduction
+  const dayTotalHours = day => day.shifts.reduce((s, sh) => s + netHours(sh), 0);
+  const totalHours    = counted.reduce((s, d) => s + dayTotalHours(d), 0);
+
+  // All closed by default
+  const [openDays, setOpenDays]       = useState({});
+  const [skippedOpen, setSkippedOpen] = useState(false);
+  const allOpen                       = counted.length > 0 && counted.every(d => openDays[d.id]);
+  const dayRefs                       = useRef({});
+  const skippedBodyRef                = useRef(null);
+
+  const toggleDay = id => setOpenDays(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleAll = () => setOpenDays(Object.fromEntries(counted.map(d => [d.id, !allOpen])));
+
+  const formatHours = h => {
+    const hrs  = Math.floor(h);
+    const mins = Math.round((h - hrs) * 60);
+    if (mins === 0) return `${hrs} hour${hrs !== 1 ? "s" : ""}`;
+    return `${hrs}hrs, ${mins}min`;
+  };
+
+  const N100 = "#E2E2E9";
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <div style={{ background: T.n0, borderRadius: 12, boxShadow: T.shadow, display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "90vh" }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: "20px 24px 16px", background: T.n0, flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+          <p style={{ fontFamily: T.fontMatter, fontSize: 20, fontWeight: 500, color: T.n400, lineHeight: "1.15", margin: 0 }}>Absence request details</p>
+          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, color: T.n200, cursor: "pointer", padding: 4, lineHeight: 1, flexShrink: 0 }}>×</Btn>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 4px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, paddingBottom: 16 }}>
+
+            {/* Section heading */}
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400 }}>Existing shifts</span>
+                  <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px" }}>{counted.length} day{counted.length !== 1 ? "s" : ""} ({formatHours(totalHours)})</span>
+                </div>
+                <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: "2px 0 0", letterSpacing: "-0.12px" }}>
+                  If absence is approved your shifts will be deleted
+                </p>
+              </div>
+              {counted.length > 0 && (
+                <Btn variant="ghost"
+                  onClick={toggleAll}
+                  style={{ display: "flex", alignItems: "center", gap: 4, height: 36, padding: "0 12px", background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer", flexShrink: 0 }}
+                >
+                  {allOpen ? <ChevronUp /> : <ChevronDown />}
+                  {allOpen ? "Collapse all" : "Expand all"}
+                </Btn>
+              )}
+            </div>
+
+            {/* Day accordions */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {counted.length === 0 ? (
+                <div style={{ border: `1px solid ${N100}`, borderRadius: 8, padding: 24, textAlign: "center" }}>
+                  <p style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300, margin: 0 }}>No shifts in this period</p>
+                </div>
+              ) : counted.map(day => {
+                const isOpen  = !!openDays[day.id];
+                const dayNet  = dayTotalHours(day);
+                return (
+                  <div key={day.id} style={{ border: `1px solid ${N100}`, borderRadius: 8, background: T.n0, overflow: "hidden" }}>
+                    {/* Accordion header */}
+                    <Btn variant="accordion"
+                      onClick={() => toggleDay(day.id)}
+                      style={{ width: "100%", background: "transparent", border: "none", padding: 16, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left" }}
+                    >
+                      <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400, flex: 1 }}>{day.label}</span>
+                      <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flexShrink: 0 }}>{formatHours(dayNet)}</span>
+                      <div style={{ width: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {isOpen ? <ChevronUp /> : <ChevronDown />}
+                      </div>
+                    </Btn>
+
+                    {/* Shifts — animated using scrollHeight ref */}
+                    <div style={{
+                      maxHeight: isOpen ? (dayRefs.current[day.id]?.scrollHeight || 400) : 0,
+                      overflow: "hidden",
+                      opacity: isOpen ? 1 : 0,
+                      transition: isOpen
+                        ? "max-height 280ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease-out"
+                        : "max-height 220ms cubic-bezier(0.4,0,1,1), opacity 150ms ease-in",
+                    }}>
+                      <div ref={el => dayRefs.current[day.id] = el} style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column" }}>
+                        {day.shifts.map((sh, i) => {
+                          const shNet = netHours(sh);
+                          return (
+                            <div
+                              key={i}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 4,
+                                paddingTop: i === 0 ? 4 : 12,
+                                paddingBottom: i < day.shifts.length - 1 ? 12 : 4,
+                                borderBottom: i < day.shifts.length - 1 ? `1px solid ${N100}` : "none",
+                              }}
+                            >
+                              {/* Shift icon */}
+                              <div style={{ padding: 6, flexShrink: 0 }}>
+                                <ShiftIcon />
+                              </div>
+                              {/* Time + room */}
+                              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, lineHeight: "1.2" }}>{sh.time}</span>
+                                <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px", lineHeight: "1.2" }}>{sh.room}</span>
+                              </div>
+                              {/* Net hours + break note */}
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                                <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300, lineHeight: "1.2" }}>{formatHours(shNet)}</span>
+                                {sh.break && (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                    <BreakIcon />
+                                    <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px" }}>{sh.break} break</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Skipped days accordion */}
+            {skipped.length > 0 && (
+              <div style={{ border: `1px solid ${N100}`, borderRadius: 8, background: T.n0, overflow: "hidden" }}>
+                <Btn variant="accordion"
+                  onClick={() => setSkippedOpen(!skippedOpen)}
+                  style={{ width: "100%", background: "transparent", border: "none", padding: 16, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left" }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400, margin: "0 0 2px" }}>{skipped.length} day{skipped.length !== 1 ? "s" : ""} skipped</p>
+                    <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0, letterSpacing: "-0.12px" }}>Non-working days, closure days and weekends</p>
+                  </div>
+                  <div style={{ width: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {skippedOpen ? <ChevronUp /> : <ChevronDown />}
+                  </div>
+                </Btn>
+
+                <div
+                  ref={skippedBodyRef}
+                  style={{
+                    maxHeight: skippedOpen ? (skippedBodyRef.current?.scrollHeight || 800) : 0,
+                    overflow: "hidden",
+                    opacity: skippedOpen ? 1 : 0,
+                    transition: skippedOpen
+                      ? "max-height 280ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease-out"
+                      : "max-height 220ms cubic-bezier(0.4,0,1,1), opacity 150ms ease-in",
+                  }}
+                >
+                  <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
+                    {skipped.map((d, i) => {
+                      const hasStripe = d.type === "weekend" || d.type === "closure";
+                      return (
+                      <div key={i} style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        padding: "8px 16px 8px 8px",
+                        border: `1px solid ${N100}`, borderRadius: 10,
+                        background: hasStripe
+                          ? `repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.03) 4px, rgba(0,0,0,0.03) 8px), ${T.n0}`
+                          : T.n0,
+                      }}>
+                        <div style={{ padding: 6, flexShrink: 0 }}>
+                          <SkippedIcon />
+                        </div>
+                        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, lineHeight: "1.2" }}>{d.label}</span>
+                          {d.subLabel && (
+                            <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px", lineHeight: "1.2" }}>{d.subLabel}</span>
+                          )}
+                        </div>
+                        <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300, lineHeight: "1.2", flexShrink: 0 }}>{d.reason}</span>
+                      </div>
+                    ); })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ padding: 24, borderTop: `1px solid ${T.n75}`, boxShadow: T.shadowFooter, flexShrink: 0 }}>
+          <Btn variant="ghost" onClick={onClose} style={{ width: "100%", height: 36, background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer" }}>
+            Close
+          </Btn>
+        </div>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+// Arrow forward ios icon for the "See request details" button
+const ArrowForwardIos = () => (
+  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
+    <path d="M6.75 13.5L11.25 9L6.75 4.5" stroke="#2D2D39" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+// ─── Notice with "See request details" button (Option B) ─────────────────────
+function NoticeB({ overText, onSeeDetails }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ background: T.n0, border: `1px solid ${T.b400}`, borderRadius: 8, padding: 12 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+          <InfoIcon color={T.b400} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            {/* Title + body */}
+            <div>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 700, color: T.n400, lineHeight: "1.2", margin: "0 0 2px" }}>{FIXED_NOTICE.title}</p>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n400, lineHeight: "1.2", margin: 0, letterSpacing: "-0.12px" }}>{FIXED_NOTICE.body}</p>
+            </div>
+            {/* See request details button */}
+            <Btn variant="ghost"
+              onClick={onSeeDetails}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 0,
+                height: 36, padding: "0 8px",
+                background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8,
+                fontFamily: T.fontMatter, fontSize: 14, color: T.n400,
+                cursor: "pointer", alignSelf: "flex-start",
+              }}
+            >
+              See request details
+              <ArrowForwardIos />
+            </Btn>
+          </div>
+        </div>
+      </div>
+      {overText && (
+        <div style={{ background: T.r50, border: `1px solid ${T.r400}`, borderRadius: 8, padding: 12 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+            <InfoIcon color={T.r400} />
+            <div>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 700, color: T.n400, lineHeight: "1.2", margin: "0 0 2px" }}>Exceeds available holiday</p>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n400, lineHeight: "1.2", margin: 0 }}>{overText}</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Staff modal — Option B ───────────────────────────────────────────────────
+function StaffModalB({ sc }) {
+  const [summaryOpen,      setSummaryOpen]      = useState(false);
+  const [noteOpen,         setNoteOpen]         = useState(false);
+  const [note,             setNote]             = useState("");
+  const [showHowItWorks,   setShowHowItWorks]   = useState(false);
+  const [showDetails,      setShowDetails]      = useState(false);
+
+  const netTotal = calcTotalHours(sc.details.counted);
+  const FOOTER_COLLAPSED_H = 176;
+
+  return (
+    <>
+      {showHowItWorks  && <HowAbsenceWorksModal  onClose={() => setShowHowItWorks(false)} />}
+      {showDetails     && <AbsenceDetailsModal   sc={sc} onClose={() => setShowDetails(false)} />}
+
+      <div style={{ background: T.n0, borderRadius: 12, width: "100%", maxWidth: 450, boxShadow: T.shadow, position: "relative", maxHeight: "760px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: 24, borderBottom: `1px solid ${T.n75}`, flexShrink: 0, background: T.n0, zIndex: 2, position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontFamily: T.fontMatter, fontSize: 20, fontWeight: 500, color: T.n400, lineHeight: "1.15", margin: "0 0 4px" }}>Request absence</p>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0, lineHeight: 1.5 }}>
+                Choose absence dates and type.{" "}
+                <Btn variant="link"
+                  onClick={() => setShowHowItWorks(true)}
+                  style={{ background: "none", border: "none", padding: 0, fontFamily: T.fontInter, fontSize: 12, color: T.b400, cursor: "pointer", textDecoration: "underline", fontWeight: 600 }}
+                >
+                  How absence works
+                </button>
+              </p>
+            </div>
+            <button style={{ background: "none", border: "none", fontSize: 20, color: T.n200, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</button>
+          </div>
+        </div>
+
+        {/* ── Scrollable content ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: `16px 24px ${FOOTER_COLLAPSED_H + 8}px`, display: "flex", flexDirection: "column", gap: 16, position: "relative", zIndex: 1 }}>
+
+          {/* Dates FIRST (Option B order) */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <Label>Absence dates</Label>
+            <div style={{ background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, height: 36, display: "flex", alignItems: "center", padding: "0 8px 0 12px", gap: 4 }}>
+              <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flexShrink: 0 }}>{sc.dates.from}</span>
+              <span style={{ fontSize: 13, color: T.n300 }}>→</span>
+              <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flex: 1 }}>{sc.dates.to}</span>
+              <span style={{ fontSize: 15, color: T.n300 }}>📅</span>
+            </div>
+            <MicroText>{sc.dates.calendarDays} calendar days{sc.dates.helperSuffix ? ` (${sc.dates.helperSuffix})` : ""}</MicroText>
+          </div>
+
+          {/* Type + Subtype */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <Label>Absence type</Label>
+              <SelectMock icon={sc.absenceType.icon} label={sc.absenceType.label} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <Label>Absence subtype</Label>
+              <SelectMock icon={sc.absenceSubtype?.icon} label={sc.absenceSubtype?.label || "—"} />
+            </div>
+          </div>
+
+          {/* Durations */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxWidth: 200 }}>
+            <Label>Durations</Label>
+            <SelectMock label="Shift" />
+            <MicroText>{sc.dates.workingDays} working days</MicroText>
+          </div>
+
+          {/* Notice B — with See details link */}
+          <NoticeB overText={sc.overNotice} onSeeDetails={() => setShowDetails(true)} />
+
+          {/* Add note */}
+          <div style={{ padding: "12px 0", opacity: 0.8 }}>
+            {!noteOpen ? (
+              <button onClick={() => setNoteOpen(true)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: 0 }}>
+                <span style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 600, color: T.n400 }}>+ Add note</span>
+              </button>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Add a note…" autoFocus style={{ border: `1px solid ${T.n200}`, borderRadius: 8, padding: "6px 8px", fontSize: 12, resize: "none", outline: "none", fontFamily: T.fontInter, flex: 1 }} />
+                <button onClick={() => { setNoteOpen(false); setNote(""); }} style={{ background: "none", border: "none", fontSize: 16, color: T.n300, cursor: "pointer", padding: 0 }}>×</button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: T.n0, borderTop: `1px solid ${T.n75}`, boxShadow: T.shadowFooter, padding: 24, display: "flex", flexDirection: "column", gap: 16, zIndex: 10, borderRadius: "0 0 12px 12px" }}>
+          <SummaryAccordion sc={sc} open={summaryOpen} onToggle={() => setSummaryOpen(!summaryOpen)} hoursOverride={netTotal} />
+          <div style={{ display: "flex", gap: 8 }}>
+            <Btn variant="ghost" style={{ flex: 1, height: 36, background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer" }}>Cancel</Btn>
+            <Btn variant={sc.summary.over ? "danger" : "primary"} style={{ flex: 1, height: 36, background: sc.summary.over ? T.r400 : T.primary, border: "none", borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n0, cursor: "pointer", fontWeight: 500 }}>
+              {sc.summary.over ? "Request anyway" : "Request"}
+            </Btn>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+function EmptyState({ view, variant, scenario }) {
+  return (
+    <div style={{
+      background: T.n0, borderRadius: 12, width: "100%", maxWidth: 450,
+      boxShadow: T.shadow, padding: 48,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      gap: 12, minHeight: 400, textAlign: "center",
+    }}>
+      <div style={{ fontSize: 32, marginBottom: 4 }}>🚧</div>
+      <p style={{ fontFamily: T.fontMatter, fontSize: 16, fontWeight: 500, color: T.n400, margin: 0 }}>
+        Not built yet
+      </p>
+      <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, lineHeight: 1.6, margin: 0, maxWidth: 280 }}>
+        {variant.description}
+      </p>
+      <div style={{ marginTop: 8, background: T.n50, border: `1px solid ${T.n75}`, borderRadius: 8, padding: "8px 14px" }}>
+        <p style={{ fontFamily: T.fontInter, fontSize: 11, color: T.n300, margin: 0 }}>
+          <strong style={{ color: T.n400 }}>View:</strong> {view.label} &nbsp;·&nbsp;
+          <strong style={{ color: T.n400 }}>Variant:</strong> {variant.label} &nbsp;·&nbsp;
+          <strong style={{ color: T.n400 }}>Scenario:</strong> {scenario.label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Segmented control ────────────────────────────────────────────────────────
+function SegmentedControl({ options, value, onChange }) {
+  return (
+    <div style={{ display: "flex", background: T.n75, borderRadius: 8, padding: 3, gap: 2 }}>
+      {options.map(opt => {
+        const active = opt.id === value;
+        return (
+          <button
+            key={opt.id}
+            onClick={() => onChange(opt.id)}
+            style={{
+              padding: "5px 16px", borderRadius: 6, border: "none", cursor: "pointer",
+              fontFamily: T.fontInter, fontSize: 13, fontWeight: active ? 600 : 400,
+              background: active ? T.n0 : "transparent",
+              color: active ? T.n400 : T.n300,
+              boxShadow: active ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+              transition: "all .15s",
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Dropdown control ─────────────────────────────────────────────────────────
+function Dropdown({ label, options, value, onChange }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <span style={{ fontFamily: T.fontInter, fontSize: 11, fontWeight: 600, color: T.n300, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</span>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          fontFamily: T.fontMatter, fontSize: 13, color: T.n400,
+          background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8,
+          padding: "6px 28px 6px 10px", cursor: "pointer", appearance: "none",
+          WebkitAppearance: "none",
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 10.5L3 5.5H13L8 10.5Z' fill='%23656581'/%3E%3C/svg%3E")`,
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "right 6px center",
+          minWidth: 180,
+        }}
+      >
+        {options.map(opt => (
+          <option key={opt.id} value={opt.id}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ─── Manager modal — Current (flat shifts panel) ─────────────────────────────
+function ManagerModalCurrent({ sc }) {
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [note,     setNote]     = useState("");
+
+  const { counted } = sc.details;
+  const netTotal    = calcTotalHours(counted);
+
+  const formatTime = h => {
+    const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60);
+    if (mins === 0) return `${hrs}hrs, 0min`;
+    return `${hrs}hrs, ${mins}min`;
+  };
+
+  // Group counted days — each day is already an object with label + shifts
+  // We display them flat: purple day heading, then shift rows beneath
+
+  return (
+      <div style={{ background: T.n0, borderRadius: 12, width: "100%", maxWidth: 900, boxShadow: T.shadow, display: "flex", flexDirection: "column", height: "760px", overflow: "hidden" }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: 24, borderBottom: `1px solid ${T.n75}`, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontFamily: T.fontMatter, fontSize: 20, fontWeight: 500, color: T.n400, lineHeight: "1.15", margin: 0 }}>Review absence</p>
+            </div>
+            <button style={{ background: "none", border: "none", fontSize: 20, color: T.n200, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</button>
+          </div>
+        </div>
+
+        {/* ── Two-column body ── */}
+        <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
+
+          {/* ── Left: form ── */}
+          <div style={{ flex: "0 0 450px", borderRight: `1px solid ${T.n75}`, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+
+            {/* Scrollable form */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Staff card */}
+              <div style={{ border: `1px solid ${T.n75}`, borderRadius: 8, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#5B3FD9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 13, fontWeight: 600, color: T.n0 }}>LM</span>
+                </div>
+                <div>
+                  <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400, margin: 0 }}>Lena Müller</p>
+                  <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0 }}>Butterflies room</p>
+                </div>
+              </div>
+
+              {/* Dates FIRST */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <Label>Absence dates</Label>
+                <div style={{ background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, height: 36, display: "flex", alignItems: "center", padding: "0 8px 0 12px", gap: 4 }}>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flexShrink: 0 }}>{sc.dates.from}</span>
+                  <span style={{ fontSize: 13, color: T.n300 }}>→</span>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flex: 1 }}>{sc.dates.to}</span>
+                  <span style={{ fontSize: 15, color: T.n300 }}>📅</span>
+                </div>
+                <MicroText>{sc.dates.calendarDays} calendar days{sc.dates.helperSuffix ? ` (${sc.dates.helperSuffix})` : ""}</MicroText>
+              </div>
+
+              {/* Type + Subtype */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <Label>Absence type</Label>
+                  <SelectMock icon={sc.absenceType.icon} label={sc.absenceType.label} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <Label>Absence subtype</Label>
+                  <SelectMock icon={sc.absenceSubtype?.icon} label={sc.absenceSubtype?.label || "—"} />
+                </div>
+              </div>
+
+              {/* Durations */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxWidth: 200 }}>
+                <Label>Durations</Label>
+                <SelectMock label="Shift" />
+                <MicroText>{sc.dates.workingDays} working days</MicroText>
+              </div>
+
+              {/* Notice */}
+              <Notice
+                overText={sc.overNotice}
+                title="Hours calculated from staff schedule"
+                body="Break deductions have been applied. Days with no scheduled shifts are not counted. Switch to Custom mode to override hours."
+              />
+
+              {/* Add note */}
+              <div style={{ opacity: 0.8, paddingBottom: 8 }}>
+                {!noteOpen ? (
+                  <button onClick={() => setNoteOpen(true)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: 0 }}>
+                    <span style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 600, color: T.n400 }}>+ Add note</span>
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Add a note for the staff member…" autoFocus style={{ border: `1px solid ${T.n200}`, borderRadius: 8, padding: "6px 8px", fontSize: 12, resize: "none", outline: "none", fontFamily: T.fontInter, flex: 1 }} />
+                    <button onClick={() => { setNoteOpen(false); setNote(""); }} style={{ background: "none", border: "none", fontSize: 16, color: T.n300, cursor: "pointer", padding: 0 }}>×</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky footer — flat summary + CTAs */}
+            <div style={{ flexShrink: 0, borderTop: `1px solid ${T.n75}`, boxShadow: T.shadowFooter, padding: 16, background: T.n0, display: "flex", flexDirection: "column", gap: 12 }}>
+              <SummaryFlat sc={sc} hoursOverride={netTotal} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="ghost" style={{ flex: 1, height: 36, background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer" }}>Decline</Btn>
+                <Btn variant="primary" style={{ flex: 1, height: 36, background: T.primary, border: "none", borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n0, cursor: "pointer", fontWeight: 500 }}>Approve</Btn>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right: flat shifts panel ── */}
+          <div style={{ flex: 1, overflowY: "auto", background: T.n50 }}>
+
+            {/* Existing shifts heading */}
+            <div style={{ padding: "16px 24px 12px", borderBottom: `1px solid ${T.n75}` }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400 }}>Existing shifts</span>
+                <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px" }}>
+                  {counted.length} day{counted.length !== 1 ? "s" : ""} ({formatTime(netTotal)})
+                </span>
+              </div>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: "2px 0 0", letterSpacing: "-0.12px" }}>
+                If Approved your shifts will be deleted
+              </p>
+            </div>
+
+            {/* Flat day groups */}
+            <div style={{ padding: "0 24px 24px" }}>
+              {counted.length === 0 ? (
+                <div style={{ paddingTop: 24, textAlign: "center" }}>
+                  <p style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300, margin: 0 }}>No shifts published for this period</p>
+                </div>
+              ) : counted.map(day => (
+                <div key={day.id}>
+                  {/* Purple date heading */}
+                  <p style={{ fontFamily: T.fontMatter, fontSize: 13, fontWeight: 600, color: T.primary, margin: "16px 0 8px", letterSpacing: "0" }}>
+                    {day.label}
+                  </p>
+                  {/* Shift rows */}
+                  {day.shifts.map((sh, i) => {
+                    const net = calcNetHours(sh);
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "110px 1fr auto auto",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "7px 0",
+                          borderBottom: `1px solid ${T.n75}`,
+                        }}
+                      >
+                        {/* Time */}
+                        <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400 }}>{sh.time}</span>
+                        {/* Room — truncated */}
+                        <span style={{ fontFamily: T.fontInter, fontSize: 14, color: T.n300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sh.room}</span>
+                        {/* Break */}
+                        {sh.break ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
+                            <BreakIcon />
+                            <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px" }}>{sh.break}</span>
+                          </div>
+                        ) : <div />}
+                        {/* Net hours */}
+                        <span style={{ fontFamily: T.fontInter, fontSize: 14, color: T.n400, textAlign: "right", flexShrink: 0 }}>{formatTime(net)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+  );
+}
+
+// ─── Manager modal ────────────────────────────────────────────────────────────
+
+// Staff away data per scenario (manager-only context)
+const STAFF_AWAY = {
+  baseline:        [{ name: "Emma Ramos",     role: "Sick — Snuffles",        day: "Tuesday 7 Apr",   color: "#DC2626" }],
+  closure:         [{ name: "Emma Ramos",     role: "Sick — Snuffles",        day: "Tuesday 7 Apr",   color: "#DC2626" }, { name: "Mia Soto", role: "Holiday — Annual leave", day: "Wednesday 8 Apr", color: "#E0A000" }],
+  unpaid:          [],
+  sick:            [],
+  childsick:       [],
+  over:            [{ name: "Lars Becker",    role: "Holiday — Annual leave", day: "Thursday 9 Apr",  color: "#E0A000" }],
+  noshifts:        [],
+};
+
+function ManagerModal({ sc }) {
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [summaryOpen,    setSummaryOpen]    = useState(false);
+  const [noteOpen,       setNoteOpen]       = useState(false);
+  const [note,           setNote]           = useState("");
+
+  // Right panel — absence details state (reuse same logic as AbsenceDetailsModal)
+  const { counted, skipped }   = sc.details;
+  const [openDays, setOpenDays] = useState({});
+  const [skippedOpen, setSkippedOpen] = useState(false);
+  const allOpen    = counted.length > 0 && counted.every(d => openDays[d.id]);
+  const dayRefs    = useRef({});
+  const skippedRef = useRef(null);
+  const N100       = "#E2E2E9";
+
+  // Use shared helpers
+  const netHours   = calcNetHours;
+  const dayNet     = calcDayNet;
+  const totalHours = calcTotalHours(counted);
+  const formatHours = h => {
+    const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60);
+    if (mins === 0) return `${hrs} hour${hrs !== 1 ? "s" : ""}`;
+    return `${hrs}hrs, ${mins}min`;
+  };
+
+  const toggleDay = id => setOpenDays(prev => ({ ...prev, [id]: !prev[id] }));
+  const toggleAll = () => setOpenDays(Object.fromEntries(counted.map(d => [d.id, !allOpen])));
+
+  const staffAway = STAFF_AWAY[sc.id] || [];
+
+  return (
+    <>
+      {showHowItWorks && <HowAbsenceWorksModal onClose={() => setShowHowItWorks(false)} />}
+
+      <div style={{ background: T.n0, borderRadius: 12, width: "100%", maxWidth: 900, boxShadow: T.shadow, display: "flex", flexDirection: "column", height: "760px", overflow: "hidden" }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: 24, borderBottom: `1px solid ${T.n75}`, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div>
+              <p style={{ fontFamily: T.fontMatter, fontSize: 20, fontWeight: 500, color: T.n400, lineHeight: "1.15", margin: "0 0 4px" }}>Review absence</p>
+              <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0 }}>
+                Review the request before approving.{" "}
+                <Btn variant="link" onClick={() => setShowHowItWorks(true)} style={{ background: "none", border: "none", padding: 0, fontFamily: T.fontInter, fontSize: 12, color: T.b400, cursor: "pointer", textDecoration: "underline", fontWeight: 600 }}>
+                  How absence works
+                </button>
+              </p>
+            </div>
+            <button style={{ background: "none", border: "none", fontSize: 20, color: T.n200, cursor: "pointer", padding: 4, lineHeight: 1 }}>×</button>
+          </div>
+        </div>
+
+        {/* ── Two-column body ── */}
+        <div style={{ flex: 1, display: "flex", minHeight: 0, overflow: "hidden" }}>
+
+          {/* ── Left: form — position relative so sticky footer works ── */}
+          <div style={{ flex: "0 0 450px", borderRight: `1px solid ${T.n75}`, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
+
+            {/* Scrollable form content */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 16 }}>
+
+              {/* Staff card */}
+              <div style={{ border: `1px solid ${T.n75}`, borderRadius: 8, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#5B3FD9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 13, fontWeight: 600, color: T.n0 }}>LM</span>
+                </div>
+                <div>
+                  <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400, margin: 0 }}>Lena Müller</p>
+                  <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0 }}>Butterflies room</p>
+                </div>
+              </div>
+
+              {/* Dates FIRST */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <Label>Absence dates</Label>
+                <div style={{ background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, height: 36, display: "flex", alignItems: "center", padding: "0 8px 0 12px", gap: 4 }}>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flexShrink: 0 }}>{sc.dates.from}</span>
+                  <span style={{ fontSize: 13, color: T.n300 }}>→</span>
+                  <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flex: 1 }}>{sc.dates.to}</span>
+                  <span style={{ fontSize: 15, color: T.n300 }}>📅</span>
+                </div>
+                <MicroText>{sc.dates.calendarDays} calendar days{sc.dates.helperSuffix ? ` (${sc.dates.helperSuffix})` : ""}</MicroText>
+              </div>
+
+              {/* Type + Subtype */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <Label>Absence type</Label>
+                  <SelectMock icon={sc.absenceType.icon} label={sc.absenceType.label} />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <Label>Absence subtype</Label>
+                  <SelectMock icon={sc.absenceSubtype?.icon} label={sc.absenceSubtype?.label || "—"} />
+                </div>
+              </div>
+
+              {/* Durations */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, maxWidth: 200 }}>
+                <Label>Durations</Label>
+                <SelectMock label="Shift" />
+                <MicroText>{sc.dates.workingDays} working days</MicroText>
+              </div>
+
+              {/* Notice — manager copy, no button */}
+              <Notice
+                overText={sc.overNotice}
+                title="Hours calculated from staff schedule"
+                body="Break deductions have been applied. Days with no scheduled shifts are not counted. Switch to Custom mode to override hours."
+              />
+
+              {/* Add note */}
+              <div style={{ opacity: 0.8, paddingBottom: 8 }}>
+                {!noteOpen ? (
+                  <button onClick={() => setNoteOpen(true)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, cursor: "pointer", padding: 0 }}>
+                    <span style={{ fontFamily: T.fontInter, fontSize: 12, fontWeight: 600, color: T.n400 }}>+ Add note</span>
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Add a note for the staff member…" autoFocus style={{ border: `1px solid ${T.n200}`, borderRadius: 8, padding: "6px 8px", fontSize: 12, resize: "none", outline: "none", fontFamily: T.fontInter, flex: 1 }} />
+                    <button onClick={() => { setNoteOpen(false); setNote(""); }} style={{ background: "none", border: "none", fontSize: 16, color: T.n300, cursor: "pointer", padding: 0 }}>×</button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky footer — summary accordion + CTAs */}
+            <div style={{ flexShrink: 0, borderTop: `1px solid ${T.n75}`, boxShadow: T.shadowFooter, padding: 16, background: T.n0, display: "flex", flexDirection: "column", gap: 12 }}>
+              <SummaryAccordion sc={sc} open={summaryOpen} onToggle={() => setSummaryOpen(!summaryOpen)} hoursOverride={totalHours} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn variant="ghost" style={{ flex: 1, height: 36, background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer" }}>Decline</button>
+                <Btn variant="primary" style={{ flex: 1, height: 36, background: T.primary, border: "none", borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n0, cursor: "pointer", fontWeight: 500 }}>Approve</button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Right: context panel ── */}
+          <div style={{ flex: 1, padding: "16px 24px", display: "flex", flexDirection: "column", gap: 20, overflowY: "auto", background: T.n50 }}>
+
+            {/* Staff away at this time */}
+            <div>
+              <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400, margin: "0 0 2px" }}>Staff away at this time</p>
+              {staffAway.length === 0 ? (
+                <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0 }}>No staff absent during this time period</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                  {staffAway.map((s, i) => (
+                    <div key={i}>
+                      <p style={{ fontFamily: T.fontInter, fontSize: 11, fontWeight: 600, color: T.n300, textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 4px" }}>{s.day}</p>
+                      <div style={{ border: `1px solid ${T.n75}`, borderRadius: 8, padding: "8px 12px", display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: "50%", background: s.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontFamily: T.fontMatter, fontSize: 11, fontWeight: 600, color: T.n0 }}>{s.name.split(" ").map(n => n[0]).join("")}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontFamily: T.fontMatter, fontSize: 13, color: T.n400, margin: 0 }}>{s.name}</p>
+                          <p style={{ fontFamily: T.fontInter, fontSize: 11, color: T.n300, margin: 0 }}>{s.role}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ height: 1, background: T.n75 }} />
+
+            {/* Existing shifts — full absence details panel */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 600, color: T.n400 }}>Existing shifts</span>
+                    <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px" }}>{counted.length} day{counted.length !== 1 ? "s" : ""} ({formatHours(totalHours)})</span>
+                  </div>
+                  <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: "2px 0 0", letterSpacing: "-0.12px" }}>
+                    Approving will turn {sc.id === "noshifts" ? "future" : "existing"} shifts into open shifts
+                  </p>
+                </div>
+                {counted.length > 0 && (
+                  <Btn variant="ghost" onClick={toggleAll} style={{ display: "flex", alignItems: "center", gap: 4, height: 36, padding: "0 12px", background: T.n0, border: `1px solid ${T.n200}`, borderRadius: 8, fontFamily: T.fontMatter, fontSize: 14, color: T.n400, cursor: "pointer", flexShrink: 0 }}>
+                    {allOpen ? <ChevronUp /> : <ChevronDown />}
+                    {allOpen ? "Collapse all" : "Expand all"}
+                  </button>
+                )}
+              </div>
+
+              {/* Day accordions */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {counted.length === 0 ? (
+                  <div style={{ border: `1px solid ${N100}`, borderRadius: 8, padding: "14px 16px" }}>
+                    <p style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300, margin: 0 }}>No shifts published for this period</p>
+                  </div>
+                ) : counted.map(day => {
+                  const isOpen = !!openDays[day.id];
+                  const dn     = dayNet(day);
+                  return (
+                    <div key={day.id} style={{ border: `1px solid ${N100}`, borderRadius: 8, background: T.n0, overflow: "hidden" }}>
+                      <Btn variant="accordion" onClick={() => toggleDay(day.id)} style={{ width: "100%", background: "transparent", border: "none", padding: 16, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left" }}>
+                        <span style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400, flex: 1 }}>{day.label}</span>
+                        <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, flexShrink: 0 }}>{formatHours(dn)}</span>
+                        <div style={{ width: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {isOpen ? <ChevronUp /> : <ChevronDown />}
+                        </div>
+                      </button>
+                      <div style={{ maxHeight: isOpen ? (dayRefs.current[day.id]?.scrollHeight || 400) : 0, overflow: "hidden", opacity: isOpen ? 1 : 0, transition: isOpen ? "max-height 280ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease-out" : "max-height 220ms cubic-bezier(0.4,0,1,1), opacity 150ms ease-in" }}>
+                        <div ref={el => dayRefs.current[day.id] = el} style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column" }}>
+                          {day.shifts.map((sh, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, paddingTop: i === 0 ? 4 : 12, paddingBottom: i < day.shifts.length - 1 ? 12 : 4, borderBottom: i < day.shifts.length - 1 ? `1px solid ${N100}` : "none" }}>
+                              <div style={{ padding: 6, flexShrink: 0 }}><ShiftIcon /></div>
+                              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                                <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, lineHeight: "1.2" }}>{sh.time}</span>
+                                <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px", lineHeight: "1.2" }}>{sh.room}</span>
+                              </div>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                                <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300 }}>{formatHours(netHours(sh))}</span>
+                                {sh.break && (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+                                    <BreakIcon />
+                                    <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px" }}>{sh.break} break</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Skipped accordion */}
+              {skipped.length > 0 && (
+                <div style={{ border: `1px solid ${N100}`, borderRadius: 8, background: T.n0, overflow: "hidden" }}>
+                  <Btn variant="accordion" onClick={() => setSkippedOpen(!skippedOpen)} style={{ width: "100%", background: "transparent", border: "none", padding: 16, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", textAlign: "left" }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontFamily: T.fontMatter, fontSize: 14, fontWeight: 500, color: T.n400, margin: "0 0 2px" }}>{skipped.length} day{skipped.length !== 1 ? "s" : ""} skipped</p>
+                      <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0, letterSpacing: "-0.12px" }}>Non-working days, closure days and weekends</p>
+                    </div>
+                    <div style={{ width: 16, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {skippedOpen ? <ChevronUp /> : <ChevronDown />}
+                    </div>
+                  </button>
+                  <div ref={skippedRef} style={{ maxHeight: skippedOpen ? (skippedRef.current?.scrollHeight || 800) : 0, overflow: "hidden", opacity: skippedOpen ? 1 : 0, transition: skippedOpen ? "max-height 280ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease-out" : "max-height 220ms cubic-bezier(0.4,0,1,1), opacity 150ms ease-in" }}>
+                    <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
+                      {skipped.map((d, i) => {
+                        const hasStripe = d.type === "weekend" || d.type === "closure";
+                        return (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, padding: "8px 16px 8px 8px", border: `1px solid ${N100}`, borderRadius: 10, background: hasStripe ? `repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(0,0,0,0.03) 4px, rgba(0,0,0,0.03) 8px), ${T.n0}` : T.n0 }}>
+                            <div style={{ padding: 6, flexShrink: 0 }}><SkippedIcon /></div>
+                            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
+                              <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n400, lineHeight: "1.2" }}>{d.label}</span>
+                              {d.subLabel && <span style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, letterSpacing: "-0.12px", lineHeight: "1.2" }}>{d.subLabel}</span>}
+                            </div>
+                            <span style={{ fontFamily: T.fontMatter, fontSize: 14, color: T.n300, flexShrink: 0 }}>{d.reason}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </>
+  );
+}
+
+// ─── App shell ────────────────────────────────────────────────────────────────
+function App() {
+  const [activeView,     setActiveView]     = useState("staff");
+  const [activeVariant,  setActiveVariant]  = useState("current");
+  const [activeScenario, setActiveScenario] = useState("baseline");
+
+  // When switching view, reset variant to "current"
+  const handleViewChange = (v) => { setActiveView(v); setActiveVariant("current"); };
+
+  const view     = VIEWS.find(v => v.id === activeView);
+  const variants = VARIANTS[activeView];
+  const variant  = variants.find(v => v.id === activeVariant) || variants[0];
+  const sc       = SCENARIOS.find(s => s.id === activeScenario);
+
+  // Determine which modal to render
+  const renderModal = (v) => {
+    if (v.placeholder) return <EmptyState view={view} variant={v} scenario={sc} />;
+    if (activeView === "staff"   && v.id === "current")  return <StaffModal   key={`${v.id}-${activeScenario}`} sc={sc} />;
+    if (activeView === "staff"   && v.id === "option-b") return <StaffModalB  key={`${v.id}-${activeScenario}`} sc={sc} />;
+    if (activeView === "manager" && v.id === "current")     return <ManagerModalCurrent key={`${v.id}-${activeScenario}`} sc={sc} />;
+    if (activeView === "manager" && v.id === "alternative") return <ManagerModal         key={`${v.id}-${activeScenario}`} sc={sc} />;
+    return <EmptyState view={view} variant={v} scenario={sc} />;
+  };
+
+  // Show side-by-side only when there are 2+ variants
+  const showSideBySide = variants.length >= 2;
+
+  // Description line for current selection
+  const selectionDesc = variant.description;
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#ECEAF6", fontFamily: T.fontMatter }}>
+
+      {/* ── Control bar ── */}
+      <div style={{
+        background: T.n0, borderBottom: `1px solid ${T.n75}`,
+        padding: "14px 24px", position: "sticky", top: 0, zIndex: 100,
+        display: "flex", flexDirection: "column", gap: 12,
+      }}>
+        {/* Row 1: View + Variant + Scenario */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 24, flexWrap: "wrap" }}>
+
+          {/* View — segmented control */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <span style={{ fontFamily: T.fontInter, fontSize: 11, fontWeight: 600, color: T.n300, textTransform: "uppercase", letterSpacing: "0.07em" }}>View</span>
+            <SegmentedControl options={VIEWS} value={activeView} onChange={handleViewChange} />
+          </div>
+
+          {/* Divider */}
+          <div style={{ width: 1, height: 36, background: T.n75, alignSelf: "flex-end" }} />
+
+          {/* Variant — dropdown */}
+          <Dropdown
+            label="Variant"
+            options={variants}
+            value={activeVariant}
+            onChange={setActiveVariant}
+          />
+
+          {/* Scenario — dropdown */}
+          <Dropdown
+            label="Scenario"
+            options={SCENARIOS}
+            value={activeScenario}
+            onChange={setActiveScenario}
+          />
+        </div>
+
+        {/* Row 2: Description */}
+        <p style={{ fontFamily: T.fontInter, fontSize: 12, color: T.n300, margin: 0, lineHeight: 1.5 }}>
+          <strong style={{ color: T.n400 }}>{view.label} · {variant.label} · {sc.label}</strong>
+          {" — "}{selectionDesc}
+        </p>
+      </div>
+
+      {/* ── Modal area ── */}
+      <div style={{
+        display: "flex", justifyContent: "center", alignItems: "flex-start",
+        gap: 32, padding: "40px 24px", flexWrap: "wrap",
+      }}>
+        {showSideBySide ? (
+          // Side by side — show all variants
+          variants.map(v => (
+            <div key={v.id} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <div style={{ background: activeVariant === v.id ? T.primary : T.n200, color: activeVariant === v.id ? T.n0 : T.n300, borderRadius: 20, padding: "3px 12px", fontFamily: T.fontInter, fontSize: 11, fontWeight: 600 }}>
+                {v.label}
+              </div>
+              {renderModal(v)}
+            </div>
+          ))
+        ) : (
+          // Single view
+          renderModal(variant)
+        )}
+      </div>
+    </div>
+  );
+}
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
