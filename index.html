@@ -9,7 +9,207 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
+    :root {<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff Prototypes — Famly Design</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--primary:#4E169C;--primary-light:#F0EDFF;--n0:#FFFFFF;--n50:#F9F9FB;--n75:#F1F1F4;--n100:#E2E2E9;--n200:#C6C6D2;--n300:#656581;--n400:#2D2D39;--g400:#1CB072;--g50:#F6FEFB;--font-matter:'DM Sans',system-ui,sans-serif;--font-inter:'Inter',system-ui,sans-serif}
+    body{font-family:var(--font-inter);background:var(--n50);color:var(--n400);min-height:100vh;-webkit-font-smoothing:antialiased}
+    .site-header{background:var(--n0);border-bottom:1px solid var(--n100);padding:0 40px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+    .header-left{display:flex;align-items:center;gap:12px}
+    .logo-mark{width:28px;height:28px;background:var(--primary);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .logo-mark svg{width:16px;height:16px;fill:white}
+    .site-title{font-family:var(--font-matter);font-size:15px;font-weight:600;color:var(--n400);letter-spacing:-0.01em}
+    .site-subtitle{font-size:12px;color:var(--n300);padding-left:12px;border-left:1px solid var(--n100);margin-left:4px}
+    .header-right{font-size:12px;color:var(--n300)}
+    .page{max-width:1100px;margin:0 auto;padding:48px 40px 80px}
+    .hero{margin-bottom:48px;animation:fadeUp 400ms ease both}
+    .hero-eyebrow{display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:20px;margin-bottom:16px}
+    .hero-title{font-family:var(--font-matter);font-size:36px;font-weight:600;color:var(--n400);line-height:1.1;letter-spacing:-0.02em;margin-bottom:12px}
+    .hero-title span{color:var(--primary)}
+    .hero-desc{font-size:14px;color:var(--n300);line-height:1.6;max-width:520px}
+    .section-header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--n100)}
+    .section-title{font-family:var(--font-matter);font-size:13px;font-weight:600;color:var(--n400);letter-spacing:.04em;text-transform:uppercase}
+    .section-meta{font-size:12px;color:var(--n300)}
+    .proto-table{width:100%;border-collapse:collapse;background:var(--n0);border:1px solid var(--n100);border-radius:12px;overflow:hidden;margin-bottom:48px;animation:fadeUp 400ms 80ms ease both}
+    .proto-table thead tr{background:var(--n50);border-bottom:1px solid var(--n100)}
+    .proto-table th{font-size:11px;font-weight:600;color:var(--n300);letter-spacing:.06em;text-transform:uppercase;padding:10px 20px;text-align:left;white-space:nowrap}
+    .proto-table tbody tr{border-bottom:1px solid var(--n75);transition:background 100ms ease;cursor:pointer}
+    .proto-table tbody tr:last-child{border-bottom:none}
+    .proto-table tbody tr:hover{background:#FAFAFC}
+    .proto-table td{padding:16px 20px;vertical-align:top}
+    .proto-name{display:flex;align-items:flex-start;gap:12px}
+    .proto-icon{width:36px;height:36px;border-radius:9px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;margin-top:1px}
+    .proto-name-text{display:flex;flex-direction:column;gap:3px}
+    .proto-title-text{font-family:var(--font-matter);font-size:14px;font-weight:600;color:var(--n400);line-height:1.2}
+    .proto-path{font-size:11px;color:var(--n300);font-family:var(--font-inter)}
+    .proto-desc{font-size:13px;color:var(--n300);line-height:1.5;max-width:300px}
+    .tag-list{display:flex;flex-wrap:wrap;gap:4px}
+    .tag{display:inline-flex;align-items:center;height:20px;padding:0 7px;border-radius:4px;font-size:11px;font-weight:500;white-space:nowrap}
+    .tag-staff{background:var(--g50);color:#15803D;border:1px solid #BBF7D0}
+    .tag-manager{background:var(--primary-light);color:var(--primary)}
+    .tag-german{background:#FFF7ED;color:#C2410C;border:1px solid #FED7AA}
+    .tag-uk{background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE}
+    .tag-default{background:var(--n75);color:var(--n300)}
+    .scenarios{font-size:12px;color:var(--n300);line-height:1.6}
+    .scenarios strong{color:var(--n400);font-weight:600}
+    .status{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500}
+    .status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .status-in-progress .status-dot{background:var(--g400)}
+    .status-in-progress{color:#15803D}
+    .status-review .status-dot{background:#F59E0B}
+    .status-review{color:#92400E}
+    .status-done .status-dot{background:var(--n200)}
+    .status-done{color:var(--n300)}
+    .proto-date{font-size:12px;color:var(--n300);white-space:nowrap}
+    .proto-date .date-main{color:var(--n400);font-weight:500;display:block}
+    .open-btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;background:var(--n0);border:1px solid var(--n200);border-radius:7px;font-family:var(--font-matter);font-size:13px;color:var(--n400);text-decoration:none;transition:background 120ms ease,border-color 120ms ease;white-space:nowrap}
+    .open-btn:hover{background:var(--n75);border-color:var(--n300)}
+    .open-btn svg{width:12px;height:12px;stroke:var(--n300)}
+    .how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:48px;animation:fadeUp 400ms 160ms ease both}
+    .how-card{background:var(--n0);border:1px solid var(--n100);border-radius:10px;padding:20px}
+    .how-card-icon{font-size:20px;margin-bottom:10px}
+    .how-card-title{font-family:var(--font-matter);font-size:13px;font-weight:600;color:var(--n400);margin-bottom:6px}
+    .how-card-desc{font-size:12px;color:var(--n300);line-height:1.6}
+    .table-loading{text-align:center;padding:48px;color:var(--n300);font-size:13px}
+    .site-footer{text-align:center;padding:32px 40px;border-top:1px solid var(--n100);font-size:12px;color:var(--n300)}
+    .site-footer a{color:var(--primary);text-decoration:none}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  </style>
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-left">
+      <div class="logo-mark">
+        <svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg>
+      </div>
+      <span class="site-title">Staff Prototypes</span>
+      <span class="site-subtitle">Famly Design · Jonas Bertelsen</span>
+    </div>
+    <div class="header-right">Interactive HTML prototypes — no build step required</div>
+  </header>
+
+  <main class="page">
+
+    <div class="hero">
+      <div class="hero-eyebrow">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M5 3v2.5l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Design Prototypes
+      </div>
+      <h1 class="hero-title">Staff <span>feature</span> prototypes</h1>
+      <p class="hero-desc">Interactive, scenario-driven prototypes for staff-facing features. Built with Famly design tokens and real component logic — no mocks, no static images.</p>
+    </div>
+
+    <div class="section-header">
+      <span class="section-title">Prototypes</span>
+      <span class="section-meta" id="section-meta">Loading…</span>
+    </div>
+
+    <table class="proto-table">
+      <thead>
+        <tr>
+          <th style="width:210px">Prototype</th>
+          <th>Description</th>
+          <th>Covers</th>
+          <th>Scenarios</th>
+          <th>Status</th>
+          <th>Last updated</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="proto-tbody">
+        <tr><td colspan="7" class="table-loading">Loading prototypes…</td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-header">
+      <span class="section-title">How to use</span>
+    </div>
+
+    <div class="how-grid">
+      <div class="how-card">
+        <div class="how-card-icon">🎛️</div>
+        <p class="how-card-title">Switch scenarios</p>
+        <p class="how-card-desc">Use the control bar at the top of each prototype to switch between views, variants, and scenarios. Changes apply instantly.</p>
+      </div>
+      <div class="how-card">
+        <div class="how-card-icon">🖱️</div>
+        <p class="how-card-title">Fully interactive</p>
+        <p class="how-card-desc">Accordions open and close, modals stack correctly, hover states respond. Behaviour mirrors the real product intent.</p>
+      </div>
+      <div class="how-card">
+        <div class="how-card-icon">📐</div>
+        <p class="how-card-title">Famly design tokens</p>
+        <p class="how-card-desc">Typography, colour, spacing, and shadow values come directly from the Figma design system. No approximations.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="site-footer">
+    Staff Prototypes · Famly Design · <a href="https://github.com/Jonaswbundgaard/staff-prototypes" target="_blank">GitHub</a>
+  </footer>
+
+  <script>
+    const TAG_CLASSES = { staff:'tag-staff', manager:'tag-manager', german:'tag-german', uk:'tag-uk' };
+    const STATUS_MAP  = {
+      'in-progress': { label:'In progress', cls:'status-in-progress' },
+      'review':      { label:'In review',   cls:'status-review'      },
+      'done':        { label:'Done',         cls:'status-done'        },
+    };
+
+    function row(p) {
+      const st  = STATUS_MAP[p.status] || STATUS_MAP['done'];
+      const tags = (p.covers||[]).map(c =>
+        `<span class="tag ${TAG_CLASSES[c.type]||'tag-default'}">${c.label}</span>`
+      ).join('');
+      return `<tr onclick="window.location='${p.path}'">
+        <td><div class="proto-name">
+          <div class="proto-icon">${p.icon||'📄'}</div>
+          <div class="proto-name-text">
+            <span class="proto-title-text">${p.title}</span>
+            <span class="proto-path">${p.path}</span>
+          </div>
+        </div></td>
+        <td><p class="proto-desc">${p.description}</p></td>
+        <td><div class="tag-list">${tags}</div></td>
+        <td><div class="scenarios"><strong>${p.scenarios}</strong> scenario${p.scenarios!==1?'s':''}<br>${p.variants} modal variant${p.variants!==1?'s':''}</div></td>
+        <td><div class="status ${st.cls}"><div class="status-dot"></div>${st.label}</div></td>
+        <td><div class="proto-date"><span class="date-main">${p.updated}</span>${p.updateNote||''}</div></td>
+        <td><a href="${p.path}" class="open-btn" onclick="event.stopPropagation()">Open
+          <svg viewBox="0 0 12 12" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h8M6 2l4 4-4 4"/></svg>
+        </a></td>
+      </tr>`;
+    }
+
+    async function load() {
+      try {
+        const data = await fetch('prototypes.json').then(r => r.json());
+        document.getElementById('proto-tbody').innerHTML = data.length
+          ? data.map(row).join('')
+          : '<tr><td colspan="7" class="table-loading">No prototypes yet.</td></tr>';
+        const latest = data.reduce((a,b) => new Date(a.updated) > new Date(b.updated) ? a : b, data[0]);
+        document.getElementById('section-meta').textContent =
+          `${data.length} prototype${data.length!==1?'s':''} · last updated ${latest?.updated||''}`;
+      } catch(e) {
+        document.getElementById('proto-tbody').innerHTML =
+          '<tr><td colspan="7" class="table-loading">Could not load prototypes.json</td></tr>';
+        document.getElementById('section-meta').textContent = '';
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
+
       --primary:   #4E169C;
       --primary-light: #F0EDFF;
       --primary-mid: #7C3AED;
