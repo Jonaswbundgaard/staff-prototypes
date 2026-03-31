@@ -1,0 +1,18 @@
+[
+  {
+    "title": "Absence Modal",
+    "path": "absence-modal/",
+    "icon": "🗓️",
+    "description": "Absence request and review flow for the German Kita market. Covers staff and manager perspectives with break deduction logic and scenario switching.",
+    "covers": [
+      { "label": "Staff",       "type": "staff"   },
+      { "label": "Manager",     "type": "manager" },
+      { "label": "German Kita", "type": "german"  }
+    ],
+    "scenarios": 7,
+    "variants": 4,
+    "status": "in-progress",
+    "updated": "31 Mar 2026",
+    "updateNote": "Manager modal"
+  }
+]
